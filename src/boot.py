@@ -1,6 +1,6 @@
 """boot.py — 设备启动时自动执行，负责 WiFi 连接和基础初始化"""
 
-import lcd
+from m5stack import *
 from lib.wifi import WiFiManager
 import config
 
