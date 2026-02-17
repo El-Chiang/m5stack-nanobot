@@ -1,0 +1,42 @@
+{
+  "source": "assets/空洞骑士",
+  "sprite": "assets/空洞骑士/sprite.jpg",
+  "frame_count": 56,
+  "frame_size": [
+    120,
+    120
+  ],
+  "columns": 8,
+  "frames_per_row": {
+    "1": 8,
+    "2": 8,
+    "3": 8,
+    "4": 8,
+    "5": 8,
+    "6": 8,
+    "7": 8
+  },
+  "background_removed": true,
+  "background_fill": [
+    0,
+    0,
+    0
+  ],
+  "key_low": 24,
+  "key_high": 96,
+  "despill": 0.7,
+  "mood_rows": {
+    "idle": 1,
+    "happy": 2,
+    "love": 2,
+    "excited": 3,
+    "celebrate": 3,
+    "sleepy": 4,
+    "snoring": 4,
+    "working": 5,
+    "angry": 6,
+    "surprised": 6,
+    "shy": 6,
+    "dragging": 7
+  }
+}

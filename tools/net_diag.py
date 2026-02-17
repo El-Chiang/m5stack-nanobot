@@ -1,10 +1,24 @@
 from m5stack import *
 import network
 import time
+import sys
 
 lcd.clear(0x000000)
 lcd.font(lcd.FONT_Default)
 lcd.setTextColor(0xFFFFFF, 0x000000)
+
+try:
+    # run_on_device 在同一 REPL 会话里执行脚本，需避免复用旧 config 缓存
+    if "config" in sys.modules:
+        del sys.modules["config"]
+    config = __import__("config")
+    WIFI_SSID = config.WIFI_SSID
+    WIFI_PASSWORD = config.WIFI_PASSWORD
+    RELAY_SERVER = config.RELAY_SERVER
+except Exception:
+    WIFI_SSID = "YOUR_WIFI_SSID"
+    WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"
+    RELAY_SERVER = "http://192.168.x.x:8080"
 
 # 1. Check WiFi
 wlan = network.WLAN(network.STA_IF)
@@ -16,13 +30,7 @@ if wlan.isconnected():
 else:
     lcd.print("WiFi NOT connected", 4, 4)
     print("WiFi NOT connected")
-    # try connect
-    try:
-        from config import WIFI_SSID, WIFI_PASSWORD, RELAY_SERVER
-    except:
-        WIFI_SSID = "1002"
-        WIFI_PASSWORD = "10000002"
-        RELAY_SERVER = "http://192.168.31.84:8080"
+    # try connect with config.py settings
     wlan.connect(WIFI_SSID, WIFI_PASSWORD)
     for i in range(20):
         if wlan.isconnected():
@@ -35,12 +43,6 @@ else:
     else:
         lcd.print("WiFi FAILED", 4, 20)
         print("WiFi FAILED")
-
-# 2. Try HTTP request
-try:
-    from config import RELAY_SERVER
-except:
-    RELAY_SERVER = "http://192.168.31.84:8080"
 
 lcd.print("Testing: " + RELAY_SERVER, 4, 40)
 print("Testing: " + RELAY_SERVER)

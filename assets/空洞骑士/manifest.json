@@ -1,0 +1,17 @@
+{
+  "id": "8744ce08-73f9-4d67-afe1-f7430845d2de",
+  "name": "空洞骑士",
+  "description": null,
+  "frameCount": 56,
+  "frameWidth": 276,
+  "frameHeight": 274,
+  "columns": 8,
+  "rows": 7,
+  "spriteFile": "sprite.jpg",
+  "author": {
+    "id": "134bf2ee-2730-4c42-bab1-c78c1c94064f",
+    "displayName": "Qinghua Wei"
+  },
+  "createdAt": "2026-01-28T00:48:42.784Z",
+  "version": "1.0"
+}
