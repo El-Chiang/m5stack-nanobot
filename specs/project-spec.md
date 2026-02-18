@@ -177,10 +177,13 @@ m5stack-nanobot/
 │   ├── config.py           # 配置文件（WiFi 密码、gateway 地址）
 │   ├── boot.py             # 启动脚本（保留，demo 不经过 boot）
 │   └── lib/                # 功能模块（保留供后续模块化使用）
-│       ├── display.py      # 屏幕显示封装
-│       ├── audio.py        # 音频播放封装
+│       ├── nanobot_app.py  # 主交互流程编排
+│       ├── chat_ui.py      # 聊天界面绘制
+│       ├── spirit_animator.py # spirit 心情动图播放器
 │       ├── wifi.py         # WiFi 连接管理
-│       └── llm_client.py   # HTTP 通信封装
+│       ├── relay_client_raw.py # raw socket HTTP 通信
+│       ├── app_config.py   # 运行时配置加载
+│       └── app_constants.py # UI/动画常量
 ├── server/                 # 旧版中继服务（已废弃，由 nanobot gateway 替代）
 │   ├── main.py             # 旧版 FastAPI 入口（参考用）
 │   ├── llm_proxy.py        # 旧版 Anthropic API 转发
@@ -253,84 +256,49 @@ nanobot 通过 LiteLLM 统一调用各 LLM provider（Anthropic、OpenAI、本�
 
 ## 7. 各模块接口定义
 
-### 7.1 屏幕模块 — `src/lib/display.py`
+### 7.1 界面模块 — `src/lib/chat_ui.py`
 
-基于 UIFlow 内置 `lcd` 模块封装。
-
-```python
-class Display:
-    """屏幕显示管理"""
-
-    def init(self):
-        """初始化屏幕，设置背景色和字体"""
-
-    def show_text(self, text: str, x: int = 0, y: int = 0, color: int = 0xFFFFFF):
-        """在指定位置显示文字"""
-
-    def show_message(self, role: str, text: str):
-        """显示对话消息（自动换行、滚动）
-        role: 'user' | 'assistant'
-        """
-
-    def show_status(self, status: str):
-        """在状态栏显示状态信息（如 '录音中...', '思考中...'）"""
-
-    def clear(self):
-        """清屏"""
-```
-
-### 7.2 音频模块 — `src/lib/audio.py`
-
-通过 DAC (GPIO 25) 输出音频。
+基于 UIFlow 内置 `lcd` 模块绘制状态栏、聊天区、按键栏。
 
 ```python
-class AudioPlayer:
-    """音频播放管理（DAC 输出）"""
+class ChatUI:
+    """聊天界面绘制"""
 
-    def init(self):
-        """初始化 DAC 输出引脚"""
+    def init_screen(self):
+        """初始化屏幕"""
 
-    def play_raw(self, data: bytes, sample_rate: int = 16000):
-        """播放 RAW PCM 音频数据
-        data: 8-bit unsigned PCM bytes
-        """
+    def draw_status(self, text: str, color=TEXT_COLOR):
+        """绘制顶部状态栏"""
 
-    def play_from_url(self, url: str):
-        """从 URL 下载并播放 WAV 音频"""
+    def draw_buttons(self):
+        """绘制底部按钮提示"""
 
-    def stop(self):
-        """停止播放"""
+    def clear_chat(self):
+        """清空聊天区"""
 
-    @property
-    def is_playing(self) -> bool:
-        """是否正在播放"""
+    def print_chat(self, text: str, color=BOT_COLOR, prefix: str = ""):
+        """写入一条聊天消息（自动换行）"""
 ```
 
-### 7.3 麦克风模块 — `src/lib/audio.py`（同文件）
+### 7.2 Spirit 动画模块 — `src/lib/spirit_animator.py`
 
-通过 ADC (GPIO 34) 采集音频。
+负责按 mood 行号播放 `spirit/rXX_fYY.jpg` 帧图。
 
 ```python
-class Microphone:
-    """麦克风录音管理（ADC 输入）"""
+class SpiritAnimator:
+    """Spirit 心情动图播放器"""
 
-    def init(self):
-        """初始化 ADC 输入引脚 (GPIO 34)"""
+    def set_mood(self, mood: str, hold_ms: int = 0):
+        """切换心情并可选保持一段时间"""
 
-    def start_recording(self):
-        """开始录音"""
+    def update(self):
+        """按固定间隔推进动画帧"""
 
-    def stop_recording(self) -> bytes:
-        """停止录音，返回音频数据
-        返回: RAW PCM bytes
-        """
-
-    @property
-    def is_recording(self) -> bool:
-        """是否正在录音"""
+    def render_current(self):
+        """渲染当前帧"""
 ```
 
-### 7.4 WiFi 模块 — `src/lib/wifi.py`
+### 7.3 WiFi 模块 — `src/lib/wifi.py`
 
 ```python
 class WiFiManager:
@@ -352,29 +320,25 @@ class WiFiManager:
         """断开连接"""
 ```
 
-### 7.5 LLM 通信模块 — `src/lib/llm_client.py`
+### 7.4 Relay 通信模块 — `src/lib/relay_client_raw.py`
 
 ```python
-class LLMClient:
-    """与中继服务的 HTTP 通信"""
+class RelayClientRaw:
+    """与中继服务通信（raw socket HTTP）"""
 
-    def init(self, server_url: str):
-        """初始化，设置中继服务地址
-        server_url: 如 'http://192.168.1.100:8080'
-        """
+    def clear_session(self):
+        """清除当前会话 session_id"""
 
-    def send_text(self, message: str) -> dict:
-        """发送文字消息
-        返回: {'reply': str, 'audio_url': str, 'conversation_id': str}
-        """
+    def send_chat(self, message: str):
+        """发送消息到 /api/chat，返回 (reply, mood)"""
+```
 
-    def send_audio(self, audio_data: bytes) -> dict:
-        """发送语音数据（录音）
-        返回: {'transcription': str, 'reply': str, 'audio_url': str}
-        """
+### 7.5 应用编排模块 — `src/lib/nanobot_app.py`
 
-    def fetch_audio(self, audio_url: str) -> bytes:
-        """下载音频文件，返回 RAW PCM bytes"""
+```python
+class NanobotApp:
+    def run(self):
+        """初始化 UI/Spirit/WiFi 后进入主循环"""
 ```
 
 ### 7.6 按键处理
@@ -383,9 +347,9 @@ class LLMClient:
 
 ```python
 # 按键映射
-# Button A (GPIO 39): 开始/停止录音
-# Button B (GPIO 38): 发送文字消息（预设或上一条）
-# Button C (GPIO 37): 切换模式 / 设置
+# Button A (GPIO 39): 发送预设消息 A
+# Button B (GPIO 38): 发送预设消息 B
+# Button C (GPIO 37): 清空会话并回到 idle
 ```
 
 ---
