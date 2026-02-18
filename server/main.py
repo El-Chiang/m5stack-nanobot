@@ -3,7 +3,7 @@
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
@@ -12,6 +12,8 @@ from nanobot.providers.litellm_provider import LiteLLMProvider
 from nanobot.bus.queue import MessageBus
 from nanobot.session.manager import SessionManager
 from nanobot.agent.loop import AgentLoop
+
+from status import get_status, start_tail, stop_tail
 
 
 # ---------------------------------------------------------------------------
@@ -64,10 +66,12 @@ async def lifespan(app: FastAPI):
     )
 
     await agent.start_mcp()
+    await start_tail()
     logger.info("Agent ready — model: {}", config.agents.defaults.model)
 
     yield
 
+    await stop_tail()
     await agent.stop_mcp()
     logger.info("Agent stopped")
 
@@ -106,6 +110,18 @@ async def chat(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
     return JSONResponse({"reply": reply, "session_id": session_id})
+
+
+@app.get("/api/status")
+async def status(cursor: int = Query(0, ge=0)):
+    """Aggregated status endpoint for M5Stack display.
+
+    Query params:
+        cursor: last seen cursor; only logs after this cursor are returned.
+
+    Returns current status, stats, and incremental log entries.
+    """
+    return get_status(cursor)
 
 
 if __name__ == "__main__":
